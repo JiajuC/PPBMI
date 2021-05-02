@@ -15,7 +15,6 @@ class privacyLoss(nn.Module):
         outs = torch.split(out,1,dim=0)
         lshape = label.shape
         lx = lshape[0]
-        ly = lshape[1]
         result = torch.Tensor([0.0]).float().to(device=self.device)
 
         for i in range(self.lx-1):
