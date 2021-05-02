@@ -1,14 +1,12 @@
 import torch
-import numpy as np
-import torch.nn.functional as func
 from torch import nn,optim
-import os
+
 class privacyLoss1(nn.Module):
     def __init__(self,sigma,device):
         super(privacyLoss1,self).__init__()
         self.device = device
         self.sigma = sigma
-        self.par = (sigma*0.5).to(device=device)
+        self.par = sigma*0.5
         #直接得到1/(2*sigma*N)
 
     def forward(self, out, label):
