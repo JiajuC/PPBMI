@@ -6,12 +6,12 @@ import time
 import pickle
 import sys
 import os
-from lossFunction import privacyLoss
+from lossFunction import privacyLoss1
 from torch.autograd import Variable
 from output_log import Logger
 from draw_while_running import draw_while_running
 seed = 1
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 device = 'cuda'
 batchSize = 32
 features = 16
@@ -64,7 +64,7 @@ class Net(nn.Module):
         self.encoder = encoder.to(self.device)
         self.topModel = topModel.to(self.device)
         self.criterrion = torch.nn.CrossEntropyLoss()
-        self.privacyLoss = privacyLoss(cov,batch_size=batchSize,device= device)
+        self.privacyLoss = privacyLoss1(sigma=1,device= device)
         self.lr = 0.001
         self.batchSize = batchSize
         self.cov = cov
