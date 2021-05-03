@@ -6,8 +6,7 @@ import time
 import pickle
 import sys
 import os
-from lossFunction import privacyLoss1
-from torch.autograd import Variable
+from lossFunction import privacyLoss1,privacyLoss2
 from output_log import Logger
 from draw_while_running import draw_while_running
 seed = 1
@@ -64,7 +63,7 @@ class Net(nn.Module):
         self.encoder = encoder.to(self.device)
         self.topModel = topModel.to(self.device)
         self.criterrion = torch.nn.CrossEntropyLoss()
-        self.privacyLoss = privacyLoss1(sigma=1,device= device)
+        self.privacyLoss = privacyLoss2(sigma=1,device= device)
         self.lr = 0.001
         self.batchSize = batchSize
         self.cov = cov
@@ -78,14 +77,13 @@ class Net(nn.Module):
         return feature
 
     def getGaussian(self, feature):
-
         t1 = feature.shape
         fx = t1[0]
         fy = t1[1]
         # feature1 = feature.cpu().detach().numpy()
         temp = np.random.multivariate_normal([0 for i in range(fy)], self.cov)
         # Data are generated according to covariance matrix and mean
-        for i in range(1,fx ):
+        for i in range(1,fx):
             temp = np.concatenate((temp, np.random.multivariate_normal([0 for i in range(fy)],
                                                                        self.cov)),
                                   axis=0)
@@ -111,9 +109,7 @@ class Net(nn.Module):
             pL = self.privacyLoss(feature,targets)
             topOutputs = self.topModel(feature)
             accLoss = self.criterrion(topOutputs,targets.long())
-
             loss = (accLoss + lam*pL.to(device)).to(device)
-            # print("here______________________________")
             self.optimizerTop.zero_grad()
             self.optimizerEncoder.zero_grad()
             loss.backward()
