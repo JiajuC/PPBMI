@@ -29,8 +29,6 @@ class privacyLoss2(nn.Module):
         super(privacyLoss2, self).__init__()
         self.device = device
         self.sigma = sigma
-        self.par = sigma * 0.5
-        # 直接得到1/(2*sigma*N)
 
     def forward(self, feature, label):
         features = torch.split(feature, 1, dim=0)

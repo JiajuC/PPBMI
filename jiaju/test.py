@@ -3,7 +3,6 @@ import random
 import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
 import pickle
-from lossFunction import privacyLoss
 import os
 
 features = 16
@@ -26,5 +25,10 @@ def getGaussian(self, feature):
     feature = feature+temp.to(self.device)+feature
     return feature
 
-loss = torch.Tensor([[1,2]])
-print(loss.shape[1])
+loss = torch.Tensor([
+    [1,2,3],
+    [2,3,4],
+    [6,7,9]
+])
+mu_a1 = torch.split(loss, 1, dim=0)
+print(mu_a1)

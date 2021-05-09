@@ -6,8 +6,8 @@ import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
 from torch import optim
 import time
-from output_log import Logger
-from draw_while_running import draw_while_running
+from outputLog import Logger
+from drawWhileRunning import draw_while_running
 import pickle
 import copy
 
