@@ -5,13 +5,13 @@ import os
 from lossFunction import privacyLoss1,privacyLoss2
 import matplotlib.pyplot as plt
 seed = 1
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 device = 'cuda'
 batchSize = 32
-features = 32
+features = 16
 cov = torch.eye(features)#Covariance matrix which is initialized to one
-
-
+topModelEpoch = 1
+decoderEpoch = 30
 np.random.seed(seed)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
@@ -22,13 +22,16 @@ torch.cuda.manual_seed_all(seed)
 
 
 class Net(nn.Module):
-    def __init__(self,encoder,topModel,train_loader,test_loader):
+    def __init__(self,encoder,topModel,train_loader,test_loader,type):
         super(Net,self).__init__()
         self.device = 'cuda'
         self.encoder = encoder.to(self.device)
         self.topModel = topModel.to(self.device)
         self.criterrion = torch.nn.CrossEntropyLoss()
-        self.privacyLoss = privacyLoss2(sigma=1,device= device)
+        if type == 2:
+            self.privacyLoss = privacyLoss2(sigma=1,device= device)
+        else:
+            self.privacyLoss = privacyLoss1(sigma=1,device = device)
         self.lr = 0.001
         self.batchSize = batchSize
         self.cov = cov
@@ -36,6 +39,7 @@ class Net(nn.Module):
         self.optimizerEncoder = optim.Adam(encoder.parameters(),lr = self.lr)
         self.trainLoader = train_loader
         self.testLoader = test_loader
+        self.type = type
 
     def getOutputFeature(self,inputs):
         feature = self.encoder(inputs)
@@ -70,18 +74,22 @@ class Net(nn.Module):
         for batch_idx,(inputs,targets) in enumerate(train_loader):
             inputs,targets = inputs.to(device),targets.to(device)
             feature = self.getOutputFeature(inputs)#torch.float32,torch.Size([32, 16])
-            feature = self.getGaussian(feature)
-            pL = self.privacyLoss(feature,targets)
+            if self.type != 0:
+                feature = self.getGaussian(feature)
+            if self.type != 0:
+                pL = self.privacyLoss(feature,targets)
             topOutputs = self.topModel(feature)
             accLoss = self.criterrion(topOutputs,targets.long())
-            loss = (accLoss + lam*pL.to(device)).to(device)
+            if self.type != 0:
+                loss = (accLoss + lam*pL.to(device)).to(device)
+            else:
+                loss = accLoss
             self.optimizerTop.zero_grad()
             self.optimizerEncoder.zero_grad()
             loss.backward()
 
             self.optimizerTop.step()
             self.optimizerEncoder.step()
-
             trainLoss +=loss.item()
             _,predicted = topOutputs.max(1)
             total += targets.size(0)
@@ -99,7 +107,8 @@ class Net(nn.Module):
         for batchIdx, (inputs, targets) in enumerate(testLoader):
             inputs, targets = inputs.to(device), targets.to(device)
             feature = self.getOutputFeature(inputs)
-            feature = self.getGaussian(feature)
+            if self.type != 0:
+                feature = self.getGaussian(feature)
             topOutputs = self.topModel(feature)
             loss = self.criterrion(topOutputs, targets.long())
 
@@ -134,7 +143,9 @@ class TestTopModel(nn.Module):
     def __init__(self):
         super(TestTopModel,self).__init__()
         self.top_layer = nn.Sequential(
-            nn.Linear(features,2)
+            nn.Linear(features,8),
+            nn.ReLU(True),
+            nn.Linear(8, 2)
         )
 
     def forward(self,x):
@@ -144,23 +155,25 @@ class TestTopModel(nn.Module):
 class DecoderModel(nn.Module):
     def __init__(self,train_loader,test_loader,attribute_number):
         super(DecoderModel, self).__init__()
-        self.type_num = [5,4,7,5,5,5,5,2]
+        self.type_num = [9, 4, 9, 7, 15]
         self.model = nn.Sequential(
             nn.Linear(features,32),
-            nn.ReLU(True),nn.Linear(32, 16),
             nn.ReLU(True),
-            nn.Linear(32,self.type_num[attribute_number])
+            nn.Linear(32, 16),
+            nn.ReLU(True),
+            nn.Linear(16,self.type_num[attribute_number])
         )
         self.trainLoader = train_loader
         self.testLoader = test_loader
         self.device = 'cuda'
-        self.lr = 0.0001
+        self.lr = 0.001
         self.criterion = torch.nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.model.to(self.device)
 
+
     def train_decoder(self):
-        epoch_num = 50
+        epoch_num = decoderEpoch
         device = self.device
         train_loss_list = []
         for epoch in range(epoch_num):
@@ -170,6 +183,7 @@ class DecoderModel(nn.Module):
             decoder_train_correct = 0
             for batch_idx, (decoder_inputs, decoder_targets) in enumerate(self.trainLoader):
                 decoder_inputs, decoder_targets = decoder_inputs.to(device), decoder_targets.to(device)
+
                 outputs = self.model(decoder_inputs)
                 self.optimizer.zero_grad()
                 loss = self.criterion(outputs, decoder_targets.long())
@@ -182,7 +196,7 @@ class DecoderModel(nn.Module):
                 # calculate accuracy
                 decoder_train_loss += loss.item() * decoder_inputs.size(0)
             train_loss = decoder_train_loss / float(len(self.trainLoader.dataset))
-            print('train privacy', train_loss_list)
+            # print('train privacy', train_loss_list)
         plt.plot(train_loss_list)
         plt.savefig(r"decoder.png")
         plt.show()
@@ -206,7 +220,7 @@ class TopModel(nn.Module):
     def __init__(self,train_loader,test_loader):
         super(TopModel, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(16, 8),
+            nn.Linear(features, 8),
             nn.ReLU(True),
             nn.Linear(8,2),
             #nn.Softmax(dim=1)
@@ -221,7 +235,7 @@ class TopModel(nn.Module):
 
 
     def train_model(self):
-        total_epoch = 20
+        total_epoch = topModelEpoch
         train_loader = self.train_loader
         device = self.device
 

@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 def load_adult_dataset():
-    dataPath = '../data/adult/'
+    dataPath = 'Data/adult/'
     f1 = open(dataPath + 'train_data.pickle', 'rb')
     f2 = open(dataPath + 'train_label.pickle', 'rb')
     f3 = open(dataPath + 'test_data.pickle', 'rb')
