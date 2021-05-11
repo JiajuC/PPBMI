@@ -4,14 +4,12 @@ import torch
 import os
 from lossFunction import privacyLoss1,privacyLoss2
 import matplotlib.pyplot as plt
+import datetime
 seed = 1
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 device = 'cuda'
 batchSize = 32
 features = 16
 cov = torch.eye(features)#Covariance matrix which is initialized to one
-topModelEpoch = 1
-decoderEpoch = 30
 np.random.seed(seed)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
@@ -64,36 +62,40 @@ class Net(nn.Module):
         feature = feature + temp.to(self.device)
         return feature
 
-    def trainModel(self, mode=True):
+    def trainModel(self,lam = 0.1,pan=0):
         train_loader = self.trainLoader
         device = self.device
         trainLoss = 0
         correct = 0
         total = 0
-        lam = 0.1
+
         for batch_idx,(inputs,targets) in enumerate(train_loader):
+
             inputs,targets = inputs.to(device),targets.to(device)
+            privateAttributeLabel = inputs[:,pan]
             feature = self.getOutputFeature(inputs)#torch.float32,torch.Size([32, 16])
             if self.type != 0:
                 feature = self.getGaussian(feature)
-            if self.type != 0:
-                pL = self.privacyLoss(feature,targets)
             topOutputs = self.topModel(feature)
             accLoss = self.criterrion(topOutputs,targets.long())
+
+
             if self.type != 0:
+                pL = self.privacyLoss(feature, privateAttributeLabel,pan)
                 loss = (accLoss + lam*pL.to(device)).to(device)
             else:
                 loss = accLoss
             self.optimizerTop.zero_grad()
             self.optimizerEncoder.zero_grad()
             loss.backward()
-
             self.optimizerTop.step()
             self.optimizerEncoder.step()
             trainLoss +=loss.item()
             _,predicted = topOutputs.max(1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
+
+
         trainAcc = correct/float(len(train_loader.dataset))
         print("train accuracy={:.2f}%".format(trainAcc*100))
         return trainAcc
@@ -171,8 +173,7 @@ class DecoderModel(nn.Module):
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.model.to(self.device)
 
-
-    def train_decoder(self):
+    def train_decoder(self,decoderEpoch = 30):
         epoch_num = decoderEpoch
         device = self.device
         train_loss_list = []
@@ -215,7 +216,6 @@ class DecoderModel(nn.Module):
         print('test privacy', test_privacy)
         return test_privacy
 
-
 class TopModel(nn.Module):
     def __init__(self,train_loader,test_loader):
         super(TopModel, self).__init__()
@@ -234,7 +234,7 @@ class TopModel(nn.Module):
         self.test_loader = test_loader
 
 
-    def train_model(self):
+    def train_model(self,topModelEpoch=30):
         total_epoch = topModelEpoch
         train_loader = self.train_loader
         device = self.device

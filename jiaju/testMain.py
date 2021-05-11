@@ -6,6 +6,7 @@ from drawWhileRunning import draw_while_running
 from adultPrivacyModels import Net,EncoderModel,TestTopModel,DecoderModel, TopModel
 from dataLoader import get_data_loader,load_adult_dataset,construct_data_loader
 import torch
+import datetime
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 if __name__ == '__main__':
     file_name = 'adult'
@@ -27,18 +28,23 @@ if __name__ == '__main__':
     device = 'cuda'
     privateAttributeNumber = 0
     batchSize = 32
-    whichprivacy = 2#0 1 2分别代表不用、1、2privacy
+    encoderEpoch = 30
+    topModelEpcoh = 30
+    decoderEpoch = 30
+    lam = 0.1
+    whichprivacy = 1#0 1 2分别代表不用、1、2privacy
     train_data, train_label, test_data, test_label = load_adult_dataset()
 
     trainLoader, testLoader = construct_data_loader(train_data, train_label, test_data, test_label, batchSize)
     encoder = EncoderModel()
     topModel = TestTopModel()
     model = Net(encoder,topModel,trainLoader,testLoader,whichprivacy)
-    totalEpoch = 30
 
-    for epoch in range(totalEpoch):
+
+    start = datetime.datetime.now()
+    for epoch in range(encoderEpoch):
         print("Epoch {}".format(epoch))
-        trainAcc = model.trainModel()
+        trainAcc = model.trainModel(lam,privateAttributeNumber)
         testAcc = model.testModel()
         result_file = open(os.path.join(rewardSavePath, results_name), 'a')
 
@@ -54,6 +60,7 @@ if __name__ == '__main__':
                                'epoch',
                                'results',
                                ['epoch', 'train_accuracy', 'test_accuracy'])
+    encoderTrainingTime = datetime.datetime.now()-start
 
     torch.save(encoder,"base_encoder.pkl")
 
@@ -73,10 +80,17 @@ if __name__ == '__main__':
 
 
     top_model = TopModel(top_train_loader, top_test_loader)
-    top_model.train_model()
+    start = datetime.datetime.now()
+    top_model.train_model(topModelEpcoh)
     top_model.test_model()
 
+    topModelTrainingTime = datetime.datetime.now() - start
 
     decoder = DecoderModel(decoder_train_loader, decoder_test_loader, privateAttributeNumber)
-    decoder.train_decoder()
+    start = datetime.datetime.now()
+    decoder.train_decoder(decoderEpoch)
     decoder.test_decoder()
+    decoderTrainingTime = datetime.datetime.now() - start
+    print("encoder training time:",encoderTrainingTime)
+    print("decoder training time:", decoderTrainingTime)
+    print("topModel training time:", topModelTrainingTime)
