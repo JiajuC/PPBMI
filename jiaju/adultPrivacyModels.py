@@ -2,7 +2,7 @@ import numpy as np
 from torch import nn,optim
 import torch
 import os
-from lossFunction import privacyLoss1,privacyLoss2
+from lossFunction import privacyLoss1,privacyLoss2,privacyLoss3
 import matplotlib.pyplot as plt
 import datetime
 seed = 1
@@ -28,8 +28,10 @@ class Net(nn.Module):
         self.criterrion = torch.nn.CrossEntropyLoss()
         if type == 2:
             self.privacyLoss = privacyLoss2(sigma=1,device= device)
-        else:
+        elif type==1:
             self.privacyLoss = privacyLoss1(sigma=1,device = device)
+        else:
+            self.privacyLoss = privacyLoss3(sigma=1,device = device)
         self.lr = 0.001
         self.batchSize = batchSize
         self.cov = cov
@@ -72,7 +74,7 @@ class Net(nn.Module):
         for batch_idx,(inputs,targets) in enumerate(train_loader):
 
             inputs,targets = inputs.to(device),targets.to(device)
-            privateAttributeLabel = inputs[:,pan]
+
             feature = self.getOutputFeature(inputs)#torch.float32,torch.Size([32, 16])
             if self.type != 0:
                 feature = self.getGaussian(feature)
@@ -80,9 +82,13 @@ class Net(nn.Module):
             accLoss = self.criterrion(topOutputs,targets.long())
 
 
-            if self.type != 0:
-                pL = self.privacyLoss(feature, privateAttributeLabel,pan)
+            if self.type == 3:
+                pL = self.privacyLoss(feature, targets,pan)
                 loss = (accLoss + lam*pL.to(device)).to(device)
+            elif self.type == 2 or self.type == 1:
+                privateAttributeLabel = inputs[:, pan]
+                pL = self.privacyLoss(feature, privateAttributeLabel, pan)
+                loss = (accLoss + lam * pL.to(device)).to(device)
             else:
                 loss = accLoss
             self.optimizerTop.zero_grad()
@@ -155,9 +161,9 @@ class TestTopModel(nn.Module):
         return output
 
 class DecoderModel(nn.Module):
-    def __init__(self,train_loader,test_loader,attribute_number):
+    def __init__(self,train_loader,test_loader,attribute_number,type_num):
         super(DecoderModel, self).__init__()
-        self.type_num = [9, 4, 9, 7, 15]
+        self.type_num = type_num
         self.model = nn.Sequential(
             nn.Linear(features,32),
             nn.ReLU(True),

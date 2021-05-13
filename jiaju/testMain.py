@@ -26,19 +26,23 @@ if __name__ == '__main__':
     accuracy_file = open(os.path.join(rewardSavePath, results_name), 'w')
 
     device = 'cuda'
-    privateAttributeNumber = 0
+    privateAttributeNumber = 3
+    type_num = [9, 4, 9, 7, 15, 6, 5, 2]
+    whichprivacyLoss = 3
     batchSize = 32
     encoderEpoch = 30
     topModelEpcoh = 30
     decoderEpoch = 30
     lam = 0.1
-    whichprivacy = 1#0 1 2分别代表不用、1、2privacy
+    print("private Attribute Number:", privateAttributeNumber, " ", type_num[privateAttributeNumber])
+    print("which privacy loss:", whichprivacyLoss)
+
     train_data, train_label, test_data, test_label = load_adult_dataset()
 
     trainLoader, testLoader = construct_data_loader(train_data, train_label, test_data, test_label, batchSize)
     encoder = EncoderModel()
     topModel = TestTopModel()
-    model = Net(encoder,topModel,trainLoader,testLoader,whichprivacy)
+    model = Net(encoder,topModel,trainLoader,testLoader,whichprivacyLoss)
 
 
     start = datetime.datetime.now()
@@ -86,7 +90,7 @@ if __name__ == '__main__':
 
     topModelTrainingTime = datetime.datetime.now() - start
 
-    decoder = DecoderModel(decoder_train_loader, decoder_test_loader, privateAttributeNumber)
+    decoder = DecoderModel(decoder_train_loader, decoder_test_loader, privateAttributeNumber,type_num)
     start = datetime.datetime.now()
     decoder.train_decoder(decoderEpoch)
     decoder.test_decoder()

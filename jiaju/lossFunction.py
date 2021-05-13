@@ -37,7 +37,7 @@ class privacyLoss2(nn.Module):
         features = torch.split(feature, 1, dim=0)#32*16的feature，
         batchSize = privatelabel.shape[0]  # batchSize
         k = features[0].shape[1]  # dimension
-        type_num = [9, 4, 9, 7, 15]
+        type_num = [9, 4, 9, 7, 15, 6, 5, 2]
         keys = []#用来进行索引的，存储的是以下三个字典的key,key是隐私标签名称
         mu_Fs = {}#不同隐私类的mu
         temp_fs = {}#存储的是一个batch中有多少个隐私类
@@ -72,13 +72,19 @@ class privacyLoss2(nn.Module):
             keys.append(key)
             result -= torch.mm(mu_Fs[key].t(), mu_Fs[key])[0]#先减去方差平方的和
         #0.02
-
-        #然后再加上两两之间的kldiv 这一步最耗时
+        # print(len(keys))
+        # #然后再加上两两之间的kldiv 这一步最耗时
+        # kltime = datetime.datetime.now()
         for i in range(len(keys) - 1):
             s1, u1 = Sigma_Fs[keys[i]], mu_Fs[keys[i]]
             for j in range(1, len(keys)):
                 s2, u2 = Sigma_Fs[keys[j]], mu_Fs[keys[j]]
+
                 result += self.kldiv(s1, u1, s2, u2, k)[0]
+
+
+        # kltime = datetime.datetime.now() - kltime
+        # print(kltime)
         #0.4-0.8
 
         return result
@@ -102,7 +108,7 @@ class privacyLoss3(nn.Module):
         k = features[0].shape[1]#dimension
 
         temp_f1,temp_f2=0,0#count
-        print(label)
+
         mu_f1 = torch.zeros((k,1)).float().to(device=self.device)
         mu_f2 = torch.zeros((k,1)).float().to(device=self.device)
         Sigma_f1 = torch.zeros((k,k)).float().to(device=self.device)
