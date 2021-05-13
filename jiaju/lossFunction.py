@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import datetime
+from tqdm import tqdm
 class privacyLoss1(nn.Module):
     def __init__(self,sigma,device):
         super(privacyLoss1,self).__init__()
@@ -13,11 +14,11 @@ class privacyLoss1(nn.Module):
 
         features = torch.split(feature, 1, dim=0)  # 得到的高斯分布
         batchSize = privatelabel.shape[0]  # batchSize
-        par = self.par / batchSize  # 参数
+        par = self.par / batchSize /batchSize  # 参数
         result = torch.Tensor([0.0]).float().to(device=self.device)
         #0.002
         for i in range(batchSize - 1):
-            for j in range(1, batchSize):
+            for j in range(i+1, batchSize):
                 if torch.equal(privatelabel[i], privatelabel[j]):
                     result -= torch.pow(torch.norm((features[i] - features[j]).float(), 2), 2)
                 else:
@@ -66,11 +67,17 @@ class privacyLoss2(nn.Module):
         result = torch.Tensor([0.0]).float().to(device=self.device)
 
 
+
         for key in mu_Fs:
             mu_Fs[key] = mu_Fs[key] / temp_fs[key]
             Sigma_Fs[key] = Sigma_a + Sigma_Fs[key] / temp_fs[key]
             keys.append(key)
-            result -= torch.mm(mu_Fs[key].t(), mu_Fs[key])[0]#先减去方差平方的和
+            #result -= torch.mm(mu_Fs[key].t(), mu_Fs[key])[0]#先减去方差平方的和
+
+        for i in range(batchSize):
+            mu_a = features[i].t()
+            mu_f = mu_Fs[float(privatelabel[i])]
+            result -= torch.mm((mu_f-mu_a).t(),(mu_f-mu_a))[0]
         #0.02
         # print(len(keys))
         # #然后再加上两两之间的kldiv 这一步最耗时
@@ -136,3 +143,25 @@ class privacyLoss3(nn.Module):
                       +torch.trace(torch.mm(Sigma_f2.inverse(),Sigma_f1)))
 
         return result
+
+
+class MutualInformation():
+    def __init__(self,sigma,device):
+        self.device = device
+        self.sigma = sigma
+        self.par = sigma * 0.5
+
+    def forward(self, feature, privatelabel):
+        features = torch.split(feature, 1, dim=0)  # 得到的高斯分布
+        batchSize = privatelabel.shape[0]  # batchSize
+        par = self.par / batchSize/batchSize  # 参数
+        result = torch.Tensor([0.0]).float().to(device=self.device)
+        #0.002
+        print("feature number:",batchSize)
+        for i in tqdm(range(batchSize - 1)):
+            for j in range(i+1, batchSize):
+                if not torch.equal(privatelabel[i], privatelabel[j]):
+                    result += torch.pow(torch.norm((features[i] - features[j]).float(), 2), 2)
+        #0.15左右
+        print("Mutual Information:",par * result)
+        return par * result

@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-def load_adult_dataset():
+def load_adult_dataset(prvacyAtt,flag=0):
     dataPath = 'Data/adult/'
     f1 = open(dataPath + 'train_data.pickle', 'rb')
     f2 = open(dataPath + 'train_label.pickle', 'rb')
@@ -16,6 +16,11 @@ def load_adult_dataset():
     f2.close()
     f3.close()
     f4.close()
+    if flag:
+        X_train = np.delete(X_train,prvacyAtt,axis=1)
+
+        X_test = np.delete(X_test,prvacyAtt,axis=1)
+
 
     train_data = torch.from_numpy(X_train)
     train_label = torch.from_numpy(y_train)
@@ -34,8 +39,8 @@ def construct_data_loader(train_data,train_label,test_data,test_label,batch_size
     return train_loader, test_loader
 
 
-def get_data_loader(dataset_name):
+def get_data_loader(dataset_name,prvacyAtt,flag=0):
     if dataset_name=='adult':
-        train_data,train_label,test_data,test_label = load_adult_dataset()
+        train_data,train_label,test_data,test_label = load_adult_dataset(prvacyAtt,flag)
     train_loader,test_loader = construct_data_loader(train_data,train_label,test_data,test_label,32)
     return train_loader,test_loader

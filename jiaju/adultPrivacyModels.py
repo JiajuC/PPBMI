@@ -2,6 +2,7 @@ import numpy as np
 from torch import nn,optim
 import torch
 import os
+from tqdm import tqdm
 from lossFunction import privacyLoss1,privacyLoss2,privacyLoss3
 import matplotlib.pyplot as plt
 import datetime
@@ -9,7 +10,8 @@ seed = 1
 device = 'cuda'
 batchSize = 32
 features = 16
-cov = torch.eye(features)#Covariance matrix which is initialized to one
+SIGMA = 1
+COV = torch.eye(features)*0.5*SIGMA#Covariance matrix which is initialized to one
 np.random.seed(seed)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
@@ -34,7 +36,7 @@ class Net(nn.Module):
             self.privacyLoss = privacyLoss3(sigma=1,device = device)
         self.lr = 0.001
         self.batchSize = batchSize
-        self.cov = cov
+        self.cov = COV
         self.optimizerTop = optim.Adam(topModel.parameters(),lr=self.lr)
         self.optimizerEncoder = optim.Adam(encoder.parameters(),lr = self.lr)
         self.trainLoader = train_loader
@@ -183,8 +185,9 @@ class DecoderModel(nn.Module):
         epoch_num = decoderEpoch
         device = self.device
         train_loss_list = []
-        for epoch in range(epoch_num):
-            print("train decoder {}/{}".format(epoch, epoch_num))
+        pdb = tqdm(range(epoch_num))
+        for epoch in pdb:
+            pdb.set_description("train decoder {}/{}".format(epoch, epoch_num))
             # train decoder
             decoder_train_loss = 0.0
             decoder_train_correct = 0
@@ -206,7 +209,7 @@ class DecoderModel(nn.Module):
             # print('train privacy', train_loss_list)
         plt.plot(train_loss_list)
         plt.savefig(r"decoder.png")
-        plt.show()
+        # plt.show()
 
     def test_decoder(self):
         device = self.device
@@ -244,9 +247,10 @@ class TopModel(nn.Module):
         total_epoch = topModelEpoch
         train_loader = self.train_loader
         device = self.device
+        pdb = tqdm(range(total_epoch))
 
-        for epoch in range(total_epoch):
-            print("train top model {}/{}".format(epoch + 1, total_epoch))
+        for epoch in pdb:
+            pdb.set_description("train top model {}/{}".format(epoch + 1, total_epoch))
             train_loss = 0.0
             correct = 0
             for batch_idx, (inputs, targets) in enumerate(train_loader):
@@ -262,7 +266,8 @@ class TopModel(nn.Module):
                 correct += predicted.eq(targets).sum().item()
 
             train_acc = correct / float(len(train_loader.dataset))
-            print("train accuracy = {:.2f}%".format(train_acc * 100))
+            pdb.set_postfix(train_accuracy = train_acc * 100)
+
 
     def test_model(self):
         test_loader = self.test_loader
