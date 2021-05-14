@@ -91,6 +91,8 @@ class Net(nn.Module):
                 privateAttributeLabel = inputs[:, pan]
                 pL = self.privacyLoss(feature, privateAttributeLabel, pan)
                 loss = (accLoss + lam * pL.to(device)).to(device)
+                # print("pri:",lam *pL)
+                # print("acc:",accLoss)
             else:
                 loss = accLoss
             self.optimizerTop.zero_grad()

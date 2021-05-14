@@ -12,14 +12,14 @@ import datetime
 
 if __name__ == '__main__':
     device = 'cuda'
-    privateAttributeNumber = 1
+    privateAttributeNumber = 7
     type_num = [9, 4, 9, 7, 15, 6, 5, 2]
     whichprivacyLoss = 2
-    batchSize = 32
-    encoderEpoch = 30
+    batchSize = 256
+    encoderEpoch = 10
     topModelEpcoh = 30
     decoderEpoch = 30
-    lam = 0.1
+    lam = 1.0E-11
     withoutPA = 0
 
     flag = 1
@@ -79,7 +79,6 @@ if __name__ == '__main__':
 
     encoderTrainingTime = datetime.datetime.now()-start
 
-    torch.save(encoder,"base_encoder.pkl")
 
     train_feature = encoder(train_data.to(device)).detach()
     test_feature = encoder(test_data.to(device)).detach()
