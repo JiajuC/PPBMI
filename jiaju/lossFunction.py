@@ -65,7 +65,7 @@ class privacyLoss2(nn.Module):
             else:
                 Sigma_Fs[label] = torch.mm((features[i].t() - mu_f), (features[i].t() - mu_f).t())
 
-        result = torch.Tensor([0.0]).float().to(device=self.device)
+        result1 = torch.Tensor([0.0]).float().to(device=self.device)
 
 
 
@@ -78,9 +78,10 @@ class privacyLoss2(nn.Module):
         for i in range(batchSize):
             mu_a = features[i].t()
             mu_f = mu_Fs[float(privatelabel[i])]
-            result -= torch.mm((mu_f-mu_a).t(),(mu_f-mu_a))[0]
-        result = result*(1-self.lam)
-        # print("----:",result)
+            result1 -= torch.mm((mu_f-mu_a).t(),(mu_f-mu_a))[0]
+        result1 = result1*self.lam*1e-8
+        # print("----:",result1)
+        result2 = torch.Tensor([0.0]).float().to(device=self.device)
         #0.02
         # print(len(keys))
         # #然后再加上两两之间的kldiv 这一步最耗时
@@ -90,9 +91,9 @@ class privacyLoss2(nn.Module):
             for j in range(1, len(keys)):
                 s2, u2 = Sigma_Fs[keys[j]], mu_Fs[keys[j]]
 
-                result += self.kldiv(s1, u1, s2, u2, k)[0]*self.lam
-        # print("++++:",result)
-
+                result2 += self.kldiv(s1, u1, s2, u2, k)[0]*(1-self.lam)
+        # print("++++:",result2)
+        result = result1+result2
         # kltime = datetime.datetime.now() - kltime
         # print(kltime)
         #0.4-0.8
