@@ -5,26 +5,37 @@ from outputLog import Logger
 from drawWhileRunning import draw_while_running
 from adultPrivacyModels import Net,EncoderModel,TestTopModel,DecoderModel, TopModel
 from dataLoader import load_adult_dataset,construct_data_loader
-from lossFunction import MutualInformation
+
 import torch
 from tqdm import tqdm
 import datetime
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 if __name__ == '__main__':
     device = 'cuda'
     privateAttributeNumber = 7
-    type_num = [9, 4, 9, 7, 15, 6, 5, 2]
+    type_num = [9, 4 , 7, 15, 6, 5, 2,2]
     whichprivacyLoss = 2
     batchSize = 256
-    encoderEpoch = 10
+    encoderEpoch = 30
     topModelEpcoh = 30
     decoderEpoch = 30
-    lam = 1.0E-11
-    withoutPA = 0
+    lam1 = 1e-9
+    lam2 = 0.25
+    withoutPA = 0#
+
+
+    dataSet_type=2#dataset type
+    taskNum = 9
+    featureDim = 16 #feature Size
+    attNum = 11 #Attribute Number
+
+
 
     flag = 1
     if flag:
-        file_name = 'adult_m{}_p{}_lam{}_'.format(whichprivacyLoss, privateAttributeNumber, lam)
+        file_name = 'adult_m{}_p{}_l1{}_l2{}_'.format(whichprivacyLoss, privateAttributeNumber, lam1,lam2)
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
         outputSavePath = './' + file_name + '_' + timestamp
         if not os.path.exists(outputSavePath):
@@ -43,24 +54,25 @@ if __name__ == '__main__':
 
     print("private Attribute Number:", privateAttributeNumber, " ", type_num[privateAttributeNumber])
     print("which privacy loss:", whichprivacyLoss)
-    print("lam:", lam)
+    print("batchSize:",batchSize)
+    print("lam:", lam1)
 
 
 
-    train_data, train_label, test_data, test_label = load_adult_dataset(privateAttributeNumber,withoutPA)
+    train_data, train_label, test_data, test_label = load_adult_dataset(privateAttributeNumber,withoutPA,dataSet_type)
 
     trainLoader, testLoader = construct_data_loader(train_data, train_label, test_data, test_label, batchSize)
 
-    encoder = EncoderModel()
-    topModel = TestTopModel()
-    model = Net(encoder,topModel,trainLoader,testLoader,whichprivacyLoss)
+    encoder = EncoderModel(attNum,featureDim)
+    topModel = TestTopModel(featureDim,taskNum)
+    model = Net(encoder,topModel,trainLoader,testLoader,whichprivacyLoss,featureDim,lam2)
 
 
     start = datetime.datetime.now()
     range(encoderEpoch)
     for epoch in range(encoderEpoch):
         print("Epoch {}:".format(epoch))
-        trainAcc = model.trainModel(lam,privateAttributeNumber)
+        trainAcc = model.trainModel(lam1,privateAttributeNumber)
         testAcc = model.testModel()
         if flag:
             result_file = open(os.path.join(rewardSavePath, results_name), 'a')
@@ -88,7 +100,7 @@ if __name__ == '__main__':
 
     decoder_train_feature = train_feature
     decoder_test_feature = test_feature
-    train_data111, _, test_data111, _ = load_adult_dataset(privateAttributeNumber, 0)
+    train_data111, _, test_data111, _ = load_adult_dataset(privateAttributeNumber, 0,dataSet_type)
     train_private_label = train_data111[:, privateAttributeNumber].to(device)
     test_private_label = test_data111[:, privateAttributeNumber].to(device)
     decoder_train_loader, decoder_test_loader = construct_data_loader(decoder_train_feature, train_private_label,
@@ -103,14 +115,14 @@ if __name__ == '__main__':
     #
     # muinfTime = datetime.datetime.now() - start
     # print("MutInf Time:",muinfTime)
-    top_model = TopModel(top_train_loader, top_test_loader)
+    top_model = TopModel(top_train_loader, top_test_loader,featureDim,taskNum)
     start = datetime.datetime.now()
     top_model.train_model(topModelEpcoh)
     top_model.test_model()
 
     topModelTrainingTime = datetime.datetime.now() - start
 
-    decoder = DecoderModel(decoder_train_loader, decoder_test_loader, privateAttributeNumber,type_num)
+    decoder = DecoderModel(decoder_train_loader, decoder_test_loader, privateAttributeNumber,type_num,featureDim)
     start = datetime.datetime.now()
     decoder.train_decoder(decoderEpoch)
     decoder.test_decoder()

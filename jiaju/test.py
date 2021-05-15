@@ -10,7 +10,4 @@ from tqdm import tqdm
 features = 16
 cov = torch.eye(features)#Covariance matrix which is initialized to one
 batchSize = 32
-
-for i in tqdm(range(batchSize - 1)):
-    for j in range(i + 1, batchSize):
-        time.sleep(0.1)
+print("%d"%1e-3)

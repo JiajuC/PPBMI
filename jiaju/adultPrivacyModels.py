@@ -6,37 +6,27 @@ from tqdm import tqdm
 from lossFunction import privacyLoss1,privacyLoss2,privacyLoss3
 import matplotlib.pyplot as plt
 import datetime
-seed = 1
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+
 device = 'cuda'
-batchSize = 32
-features = 16
 SIGMA = 1
-COV = torch.eye(features)*0.5*SIGMA#Covariance matrix which is initialized to one
-np.random.seed(seed)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
-
-
 
 class Net(nn.Module):
-    def __init__(self,encoder,topModel,train_loader,test_loader,type):
+    def __init__(self,encoder,topModel,train_loader,test_loader,type,featureDim,lam2):
         super(Net,self).__init__()
         self.device = 'cuda'
         self.encoder = encoder.to(self.device)
         self.topModel = topModel.to(self.device)
         self.criterrion = torch.nn.CrossEntropyLoss()
         if type == 2:
-            self.privacyLoss = privacyLoss2(sigma=1,device= device)
+            self.privacyLoss = privacyLoss2(sigma=1,device= device,lam=lam2)
         elif type==1:
             self.privacyLoss = privacyLoss1(sigma=1,device = device)
         else:
             self.privacyLoss = privacyLoss3(sigma=1,device = device)
         self.lr = 0.001
-        self.batchSize = batchSize
-        self.cov = COV
+
+        self.cov = torch.eye(featureDim)*0.5*SIGMA#Covariance matrix which is initialized to one
         self.optimizerTop = optim.Adam(topModel.parameters(),lr=self.lr)
         self.optimizerEncoder = optim.Adam(encoder.parameters(),lr = self.lr)
         self.trainLoader = train_loader
@@ -66,7 +56,7 @@ class Net(nn.Module):
         feature = feature + temp.to(self.device)
         return feature
 
-    def trainModel(self,lam = 0.1,pan=0):
+    def trainModel(self,lam = 0.1,pan=0,lam2=0.25):
         train_loader = self.trainLoader
         device = self.device
         trainLoss = 0
@@ -135,13 +125,13 @@ class Net(nn.Module):
         return testAcc
 
 class EncoderModel(nn.Module):
-    def __init__(self):
+    def __init__(self,attNum,featureDim):
         super(EncoderModel,self).__init__()
         self.layer1 = nn.Sequential(
-            nn.Linear(11,32),
+            nn.Linear(attNum,32),
             # nn.Dropout(p=0.5),
             nn.ReLU(True),
-            nn.Linear(32, features),
+            nn.Linear(32, featureDim),
             # nn.Dropout(p=0.5),
             nn.ReLU(True)
         )
@@ -152,12 +142,12 @@ class EncoderModel(nn.Module):
         return x
 
 class TestTopModel(nn.Module):
-    def __init__(self):
+    def __init__(self,featureDim,taskNum):
         super(TestTopModel,self).__init__()
         self.top_layer = nn.Sequential(
-            nn.Linear(features,8),
+            nn.Linear(featureDim,16),
             nn.ReLU(True),
-            nn.Linear(8, 2)
+            nn.Linear(16, taskNum)
         )
 
     def forward(self,x):
@@ -165,11 +155,11 @@ class TestTopModel(nn.Module):
         return output
 
 class DecoderModel(nn.Module):
-    def __init__(self,train_loader,test_loader,attribute_number,type_num):
+    def __init__(self,train_loader,test_loader,attribute_number,type_num,featureDim):
         super(DecoderModel, self).__init__()
         self.type_num = type_num
         self.model = nn.Sequential(
-            nn.Linear(features,32),
+            nn.Linear(featureDim,32),
             nn.ReLU(True),
             nn.Linear(32, 16),
             nn.ReLU(True),
@@ -228,12 +218,12 @@ class DecoderModel(nn.Module):
         return test_privacy
 
 class TopModel(nn.Module):
-    def __init__(self,train_loader,test_loader):
+    def __init__(self,train_loader,test_loader,featureDim,taskNum):
         super(TopModel, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(features, 8),
+            nn.Linear(featureDim, 16),
             nn.ReLU(True),
-            nn.Linear(8,2),
+            nn.Linear(16,taskNum),
             #nn.Softmax(dim=1)
         )
         self.device = 'cuda'
