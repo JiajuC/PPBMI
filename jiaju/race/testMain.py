@@ -16,8 +16,8 @@ if __name__ == '__main__':
 
     featureDim = 256  # feature Size
 
-    whichprivacyLoss = 1
-    batchSize = 32
+    whichprivacyLoss = 2
+    batchSize = 256
     encoderEpoch = 20
     topModelEpcoh = 20
     decoderEpoch = 1000
@@ -30,9 +30,9 @@ if __name__ == '__main__':
     activateLoss = 0
 
 
-    flag = 0
+    flag = 1
     if flag:
-        file_name = 'adultp{}'.format(whichprivacyLoss)
+        file_name = 'race_m{}_batchSize{}'.format(whichprivacyLoss,batchSize)
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
         outputSavePath = './' + file_name + '_' + timestamp
         if not os.path.exists(outputSavePath):
@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
     encoderTrainingTime = datetime.datetime.now()-start
 
-
+    torch.save(encoder,"encoder_m{}_batchSize{}".format(whichprivacyLoss,batchSize))
     # train_feature = encoder(train_data.to(device)).detach()
     # test_feature = encoder(test_data.to(device)).detach()
     train_feature = train_data.to(device)
